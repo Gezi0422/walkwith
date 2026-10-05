@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>WALKWITH Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;600&display=swap">
+<style>
+/* Layout: two live phones (blind port, volunteer port) side by side, driven by one shared state; a swimlane flow tracker on the right mirrors the core cross-device flow. */
+:root{
+  --page:#ECEEF4; --panel:#FFFFFF; --ink:#11131A; --muted:#5D6375; --line:#D8DCE6;
+  --brand:#1446D8; --brand-deep:#0B2A8C; --navy:#0A1C63; --brand-soft:#E3EAFE;
+  --sys:#8A90A0; --ok:#1C8C55; --warn:#C2410C; --sos:#D92D20;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Archivo","Noto Sans SC","PingFang SC","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0C0F1A; --panel:#151A2B; --ink:#E9ECF5; --muted:#9AA2B8; --line:#2A3148; --brand-soft:#1B2A5C; --sys:#8C93A8; color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0F1A; --panel:#151A2B; --ink:#E9ECF5; --muted:#9AA2B8; --line:#2A3148; --brand-soft:#1B2A5C; --sys:#8C93A8; color-scheme:dark}
+html,body{background:var(--page);color:var(--ink)}
+body{font-family:var(--f-body);padding:24px 16px 48px}
+*{box-sizing:border-box}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #7AA2FF;outline-offset:2px}
+
+/* ---------- page chrome ---------- */
+.top{max-width:1240px;margin:0 auto 18px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:28px;letter-spacing:.02em;margin:0;line-height:1}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:13px;font-weight:600}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.hint{max-width:1240px;margin:0 auto 20px;display:flex;gap:10px;align-items:center;background:var(--brand-soft);border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.5}
+.hint b{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;color:var(--brand);white-space:nowrap}
+:root:not([data-theme="light"]) .hint b{color:inherit}
+.stage{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:auto auto minmax(260px,1fr);gap:28px;align-items:start;justify-content:center}
+@media (max-width:1100px){.stage{grid-template-columns:auto auto}.flow{grid-column:1/-1}}
+@media (max-width:760px){.stage{grid-template-columns:1fr;justify-items:center}}
+.col{display:flex;flex-direction:column;gap:10px;align-items:center;min-width:0}
+.col-h{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%}
+
+/* ---------- phone ---------- */
+.phone{width:340px;max-width:100%;height:720px;border-radius:48px;background:#0E0F14;padding:10px;box-shadow:0 30px 60px -30px rgba(10,20,60,.45)}
+.phone.buzz{animation:buzz .35s}
+@keyframes buzz{20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+.screen{position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:#fff;color:#11131A}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:20px;background:#0E0F14;z-index:30}
+.sbar{position:absolute;top:0;left:0;right:0;height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:13px;font-weight:700;z-index:29;pointer-events:none}
+.homebar{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:110px;height:4px;border-radius:4px;background:currentColor;opacity:.5;z-index:29;pointer-events:none}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;padding:50px 18px 22px}
+.blue{background-color:#1446D8;background-size:cover;background-position:center;color:#fff}
+.white{background:#fff;color:#11131A}
+
+.tabs{margin-top:auto;display:flex;justify-content:space-around;align-items:center;height:54px;border-radius:28px;background:#0A1C63;color:#fff;flex-shrink:0}
+.tabs.dark{background:#16171C}
+.vtabs{position:absolute;left:18px;right:18px;bottom:22px;z-index:24;margin:0}
+#vol .scr{padding-bottom:88px}
+.tabs button{width:52px;height:44px;display:grid;place-items:center;border-radius:22px;opacity:.75}
+.tabs button.act{opacity:1;color:#7FA3FF}
+.tabs button.act::after{content:"";position:absolute}
+
+/* blind */
+.b-title{font-family:var(--f-display);font-size:20px;font-weight:700;margin:4px 0 10px;display:flex;justify-content:space-between;align-items:center}
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px 8px;scrollbar-width:none}
+.chat::-webkit-scrollbar{display:none}
+.msg{display:flex;gap:8px;align-items:flex-end;max-width:92%}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.av{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:12px;font-weight:800;background:#fff;color:#1446D8;border:2px solid #fff}
+.msg.me .av{background:#F3C6A8;color:#7A3B16}
+.bub{background:#fff;color:#11131A;border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.45;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.msg.me .bub{border-bottom-right-radius:3px}
+.msg.w .bub{border-bottom-left-radius:3px}
+.typing span{display:inline-block;width:5px;height:5px;margin:0 1.5px;border-radius:50%;background:#1446D8;animation:blink 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes blink{50%{opacity:.25}}
+.micwrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0 12px}
+.mic{width:92px;height:92px;border-radius:50%;background:#fff;color:#1446D8;display:grid;place-items:center;box-shadow:0 0 0 10px rgba(255,255,255,.18)}
+.mic.on{animation:pulse 1s infinite}
+.mic:disabled{opacity:.55;cursor:default}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}100%{box-shadow:0 0 0 26px rgba(255,255,255,0)}}
+.micwrap p{margin:0;font-size:12px;opacity:.85}
+.linkbtn{color:#fff;text-decoration:underline;font-size:11.5px;opacity:.9}
+.say{display:flex;gap:8px;margin-top:6px}
+.say input{flex:1;min-width:0;height:42px;border-radius:21px;border:0;padding:0 14px;font:inherit;font-size:16px;color:#11131A;background:#fff}
+.say button{width:42px;height:42px;border-radius:50%;background:#0A1C63;color:#fff;display:grid;place-items:center;flex-shrink:0}
+.sayrow{display:flex;justify-content:space-between;margin-top:6px}
+.sayrow button{color:#fff;text-decoration:underline;font-size:11.5px;opacity:.9}
+.msg.me.interim .bub{opacity:.7;font-style:italic}
+.caption{position:absolute;left:14px;right:14px;bottom:86px;z-index:20;background:rgba(6,14,50,.92);color:#fff;border-radius:12px;padding:9px 12px;font-size:12px;line-height:1.45;display:flex;gap:8px;align-items:flex-start}
+.caption.trip{bottom:24px}
+.caption svg{flex-shrink:0;margin-top:1px;color:#7FA3FF}
+
+.card-navy{background:#0A1C63;border-radius:22px;padding:18px;color:#fff}
+.vlabel{font-size:13px;opacity:.8;font-weight:600}
+.vnum{font-family:var(--f-display);font-weight:800;font-size:46px;letter-spacing:.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.vname{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1.1}
+.callbtn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.12);display:grid;place-items:center;color:#fff}
+.tl{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column}
+.tl li{position:relative;padding:0 0 14px 20px;font-size:12.5px;opacity:.5}
+.tl li::before{content:"";position:absolute;left:3px;top:4px;width:7px;height:7px;border-radius:50%;background:currentColor}
+.tl li::after{content:"";position:absolute;left:6px;top:14px;bottom:2px;border-left:1.5px dotted currentColor}
+.tl li:last-child::after{display:none}
+.tl li.done{opacity:.8}
+.tl li.now{opacity:1;font-weight:700}
+.tl li.now::before{background:#7FA3FF;box-shadow:0 0 0 4px rgba(127,163,255,.3)}
+.tl small{display:block;font-weight:400;opacity:.8;margin-top:2px}
+.codebox{display:flex;gap:6px;margin-top:8px}
+.codebox span{width:38px;height:44px;border-radius:8px;background:#fff;color:#0A1C63;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:22px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:22px;font-weight:700;font-size:14px;width:100%}
+.btn.black{background:#11131A;color:#fff}
+.btn.white{background:#fff;color:#0A1C63}
+.btn.ghost{background:rgba(255,255,255,.14);color:#fff}
+.btn.line{border:1.5px solid #11131A;color:#11131A}
+.btn.gmaps{background:#fff;color:#0A1C63;text-decoration:none;height:40px;font-size:13px;border:2px solid #7FA3FF}
+a.btn{text-decoration:none}
+.btn.sm{height:36px;font-size:13px}
+.btn:disabled{opacity:.4;cursor:default}
+.sos{width:46px;height:46px;border-radius:50%;background:#D92D20;color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center;letter-spacing:.04em}
+
+/* overlays */
+.ov{position:absolute;inset:0;z-index:25;background:rgba(10,14,30,.55);display:flex;align-items:center;justify-content:center;padding:26px}
+.modal{background:#fff;color:#11131A;border-radius:20px;padding:22px 20px 18px;width:100%;text-align:center;position:relative;display:flex;flex-direction:column;gap:10px}
+.modal h3{margin:0;font-family:var(--f-display);font-size:17px}
+.modal p{margin:0;font-size:12.5px;color:#4B5163;line-height:1.5}
+.modal .x{position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;background:#1446D8;color:#fff;display:grid;place-items:center}
+.modal .big{font-family:var(--f-display);font-weight:800;font-size:34px;letter-spacing:.18em;color:#0A1C63;font-variant-numeric:tabular-nums}
+.modal .ico{color:#1446D8;display:flex;justify-content:center}
+.spin{width:38px;height:38px;margin:4px auto;border-radius:50%;border:4px solid #D7E0FB;border-top-color:#1446D8;animation:rot .9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.req{text-align:left;display:flex;flex-direction:column;gap:2px;padding-left:14px;border-left:2px solid #11131A;margin:4px 0 6px}
+.req small{font-size:11px;color:#4B5163}
+.req strong{font-family:var(--f-display);font-size:15px;letter-spacing:.02em;display:flex;align-items:center;gap:6px}
+.req em{font-style:normal;font-size:11px;color:#1446D8;font-weight:700;margin-bottom:6px}
+.pill{display:inline-block;padding:2px 7px;border-radius:999px;background:#1446D8;color:#fff;font-size:10px;font-weight:700;font-family:var(--f-body);letter-spacing:0}
+.pill.dark{background:#11131A}
+.note{background:#E3EAFE;color:#0B2A8C;border-radius:10px;padding:8px 10px;font-size:11.5px;text-align:left;line-height:1.45}
+
+/* volunteer */
+.v-head{display:flex;justify-content:space-between;align-items:center;margin:2px 0 12px}
+.v-head h2{margin:0;font-family:var(--f-display);font-size:18px}
+.v-icons{display:flex;gap:10px;color:inherit;opacity:.8}
+.relay-tag{position:absolute;top:44px;left:12px;right:12px;z-index:22;background:#FFE7C2;color:#7A3D00;border-radius:10px;font-size:11px;font-weight:700;padding:6px 10px;text-align:center}
+.logo-sm{display:flex;flex-direction:column;gap:4px;font-family:var(--f-display);font-weight:800;font-size:15px;letter-spacing:.04em}
+.vcard{background:#1446D8;color:#fff;border-radius:18px;padding:20px 16px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.vcard h3{margin:0;font-family:var(--f-display);font-size:26px}
+.vcard p{margin:0;font-size:11.5px;opacity:.85}
+.seg{display:flex;justify-content:center;gap:10px;margin-top:10px}
+.seg button{padding:6px 16px;border-radius:999px;background:#0A1C63;color:#fff;font-size:12px;font-weight:700;opacity:.55}
+.seg button.act{opacity:1;background:#11131A}
+.tasks{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;scrollbar-width:none;padding-bottom:8px}
+.trow{display:grid;grid-template-columns:44px 1fr;gap:6px}
+.trow .when{font-size:11px;color:#5D6375;padding-top:12px;font-weight:600}
+.tcard{background:#F2F3F7;border-radius:14px;padding:10px 12px;font-size:11px;color:#5D6375;display:flex;flex-direction:column;gap:2px;text-align:left;width:100%}
+.tcard.live{background:#E3EAFE;outline:2px solid #1446D8}
+.tcard b{font-size:13.5px;color:#11131A;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#1446D8;color:#fff;border-radius:12px;padding:12px 6px;text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;font-size:10px}
+.stat b{font-size:13px}
+.list{display:flex;flex-direction:column;gap:6px}
+.list h4{margin:10px 0 2px;font-size:13px}
+.row{display:flex;justify-content:space-between;align-items:center;background:#F2F3F7;border-radius:10px;padding:10px 12px;font-size:12px;color:#3B4152;width:100%;text-align:left}
+.ptop{background:#1446D8;color:#fff;margin:-50px -18px 0;padding:56px 18px 18px;background-size:cover}
+.ptop h2{font-family:var(--f-display);font-size:26px;margin:4px 0 8px}
+.pts{display:flex;gap:16px;align-items:center;font-size:12px}
+.pts b{font-size:16px;font-variant-numeric:tabular-nums}
+.pts .xbtn{margin-left:auto;background:#11131A;color:#fff;border-radius:999px;padding:6px 12px;font-size:11px;font-weight:700}
+.sheet{background:#fff;color:#11131A;border-radius:22px 22px 0 0;margin:auto -18px -22px;padding:18px 18px 26px;display:flex;flex-direction:column;gap:10px}
+.radio{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:8px 2px;border-bottom:1px solid #ECEEF3;width:100%}
+.radio small{display:block;font-size:10.5px;color:#5D6375;margin-top:2px}
+.radio .r{width:18px;height:18px;border-radius:50%;border:2px solid #1446D8;flex-shrink:0;display:grid;place-items:center}
+.radio.act .r::after{content:"";width:8px;height:8px;border-radius:50%;background:#1446D8}
+.codein{display:flex;gap:8px;justify-content:center}
+.codein span{width:50px;height:56px;border-radius:8px;background:#ECEEF3;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:26px}
+.codein span.cur{outline:2px solid #1446D8}
+.codein.bad span{background:#FDE3E1;animation:buzz .35s}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#D3D6DE;margin:auto -18px 0;padding:8px}
+.pad button{background:#fff;border-radius:6px;height:40px;font-size:20px;font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.pad button small{font-size:8px;font-weight:700;letter-spacing:.1em;margin-top:2px}
+.pad button.blank{background:transparent;cursor:default}
+.field{display:flex;flex-direction:column;gap:4px;text-align:left;font-size:11.5px;font-weight:700;color:#3B4152}
+.field select,.field input{height:38px;border-radius:8px;border:1px solid #CDD1DB;padding:0 10px;font:inherit;font-weight:500;font-size:13px;background:#fff;color:#11131A}
+.toast{position:absolute;top:50px;left:12px;right:12px;z-index:28;background:#11131A;color:#fff;border-radius:14px;padding:10px 12px;font-size:12px;display:flex;gap:10px;align-items:center;animation:drop .3s ease-out}
+.toast b{display:block;font-size:13px}
+@keyframes drop{from{transform:translateY(-16px);opacity:0}}
+.qty{display:flex;justify-content:center;align-items:center;gap:16px;font-size:20px;font-weight:800}
+.qty button{width:34px;height:34px;border-radius:50%;background:#ECEEF3;font-size:18px}
+.dist{display:flex;gap:16px;font-size:12px;margin-top:8px;opacity:.85}
+.dist b{font-size:18px;display:block}
+
+/* flow panel */
+.flow{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0;width:100%}
+.flow h3{margin:0;font-family:var(--f-display);font-size:15px;letter-spacing:.06em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.flow h3 .pill{font-size:11px;letter-spacing:0;text-transform:none}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:5px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.steps li{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:6px 0;color:var(--muted);font-size:12.5px;position:relative}
+.steps li .n{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--panel)}
+.steps li b{display:block;font-size:12px;letter-spacing:.06em;color:var(--ink);opacity:.55}
+.steps li.done .n{background:var(--lane);border-color:var(--lane);color:#fff}
+.steps li.done b{opacity:.85}
+.steps li.now .n{border-color:var(--lane);border-width:2.5px;color:var(--ink);box-shadow:0 0 0 4px color-mix(in srgb,var(--lane) 25%,transparent)}
+.steps li.now b{opacity:1}
+.steps li.now{color:var(--ink)}
+.lane{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--lane);margin-left:6px}
+.log{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
+.log div{font-size:11.5px;color:var(--muted);display:grid;grid-template-columns:62px 1fr;gap:8px;line-height:1.4}
+.log div span:first-child{font-weight:700;color:var(--ink);font-size:10.5px;letter-spacing:.06em}
+.mech{font-size:12px;color:var(--muted);line-height:1.55;border-top:1px solid var(--line);padding-top:12px}
+.mech b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="brand">
+    <span id="logo"></span>
+    <div><h1>WALKWITH</h1><p>Walk with you, every step. · 可交互原型：左边盲人端，右边志愿者端，两台手机实时联动</p></div>
+  </div>
+  <div class="ctrls">
+    <button class="chip on" id="audioBtn" data-a="toggleAudio"></button>
+    <button class="chip" data-a="reset">重新开始</button>
+  </div>
+</header>
+<div class="hint" role="status" aria-live="polite"><b>NEXT</b><span id="hint"></span></div>
+
+<main class="stage">
+  <section class="col">
+    <div class="col-h"><span class="dot" style="background:#1446D8"></span>A · Blind port · Miss Liu</div>
+    <div class="phone" id="pB"><div class="screen"><div class="notch"></div><div class="sbar"><span>9:41</span><span>5G ▮</span></div><div id="blind"></div><div class="homebar"></div></div></div>
+  </section>
+  <section class="col">
+    <div class="col-h"><span class="dot" style="background:#11131A;outline:1px solid #888"></span>B · Volunteer port · <span id="vwho">Junge</span></div>
+    <div class="phone" id="pV"><div class="screen"><div class="notch"></div><div class="sbar" id="vsbar"><span>9:41</span><span>5G ▮</span></div><div id="vol"></div><div class="homebar" id="vhb"></div></div></div>
+  </section>
+  <aside class="flow" id="flow"></aside>
+</main>
+
+<script>
+/* ---------------- icons ---------------- */
+const P={
+ mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+ star:'<path fill="currentColor" stroke="none" d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+ phone:'<path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+ gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+ hand:'<path d="M2 15h3l4 2h5a2 2 0 0 0 0-4h-3M5 15v6M8 21h7l5-4a1.5 1.5 0 0 0-2-2.2L15 17"/><path d="M14 2.5l3.5 1.4V6.5c0 2-1.5 3.4-3.5 4-2-.6-3.5-2-3.5-4V3.9z"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+ doc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+ mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+ head:'<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+ pin:'<path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/>',
+ nav:'<path fill="currentColor" d="M3 11l18-8-8 18-2-8z"/>',
+ shield:'<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+ gift:'<rect x="3" y="8" width="18" height="4"/><path d="M5 12v9h14v-9M12 8v13M12 8S10 3 7.5 4.5 9 8 12 8zm0 0s2-5 4.5-3.5S15 8 12 8z"/>',
+ ticket:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+ x:'<path d="M7 7l10 10M17 7L7 17"/>',
+ back:'<path d="M15 5l-7 7 7 7"/>',
+ heart:'<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+ vol:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+ mute:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 5M22 9l-5 5"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ flag:'<path d="M5 21V4h12l-2.5 4L17 12H5"/>',
+ chev:'<path d="M9 6l6 6-6 6"/>',
+ del:'<path d="M9 6h11v12H9l-6-6z"/><path d="M12 10l4 4M16 10l-4 4"/>',
+ route:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h8a3 3 0 0 1 0 6H8a3 3 0 0 0 0 6h8"/>',
+ walk:'<circle cx="13" cy="4" r="2"/><path d="M11 21l2-6-3-3 1-4 4 3h3M8 12l2-4M8.5 21l1.5-4"/>',
+ coins:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+};
+const ic=(n,s=20,w=2)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* braille "walkwith" logo: dots 1-3 left column, 4-6 right column */
+const BR={w:[2,4,5,6],a:[1],l:[1,2,3],k:[1,3],i:[2,4],t:[2,3,4,5],h:[1,2,5]};
+function braille(word,r=3,g=9,color='#1446D8'){
+  const cw=g*2.6;let s='';[...word].forEach((ch,i)=>BR[ch].forEach(d=>{const c=d>3?1:0,row=(d-1)%3;s+=`<circle cx="${i*cw+c*g+r}" cy="${row*g+r}" r="${r}" fill="${color}"/>`}));
+  return `<svg width="${(word.length-1)*cw+g+r*2}" height="${g*2+r*2}" aria-label="WALKWITH in braille" role="img">${s}</svg>`;
+}
+document.getElementById('logo').innerHTML=braille('walkwith',4,11);
+
+/* ---------------- maps ---------------- */
+function rng(seed){return()=>(seed=(seed*16807)%2147483647)/2147483647}
+function mapSVG(t,route){
+  const r=rng(t.seed);let s=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 800' preserveAspectRatio='xMidYMid slice'><rect width='400' height='800' fill='${t.bg}'/>`;
+  s+=`<path d='M250 110q70-10 80 45t-45 65q-55 5-60-45z' fill='${t.park}'/><path d='M40 610q50-30 90 0t-10 70q-60 20-80-20z' fill='${t.park}'/>`;
+  for(let i=0;i<70;i++){const x=r()*440-20,y=r()*840-20,a=(r()<.5?.18:1.55)+(r()-.5)*.35,l=60+r()*240;s+=`<line x1='${x|0}' y1='${y|0}' x2='${(x+Math.cos(a)*l)|0}' y2='${(y+Math.sin(a)*l)|0}' stroke='${t.minor}' stroke-width='${(1+r()*2.5).toFixed(1)}'/>`}
+  s+=`<path d='M-20 360q90 30 170 10t140 40 130-10v90q-70 20-130 0t-140-30-170 0z' fill='${t.water}'/><path d='M310 600q60-20 110 10v120q-60-10-90-40t-20-90z' fill='${t.water}'/>`;
+  s+=`<path d='M-20 520Q200 430 420 560' stroke='${t.major}' stroke-width='12' fill='none'/><path d='M120 -20Q160 400 90 820' stroke='${t.major}' stroke-width='9' fill='none'/><path d='M-20 250L420 330' stroke='${t.major}' stroke-width='7' fill='none'/>`;
+  if(route){s+=`<path d='M95 600L150 470L230 430L300 250' stroke='${t.route}' stroke-width='5' fill='none' stroke-linejoin='round'/><circle cx='95' cy='600' r='9' fill='${t.route}'/><circle cx='95' cy='600' r='4' fill='${t.bg}'/><path d='M300 250c0-14-11-22-22-22s-22 8-22 22c0 16 22 34 22 34s22-18 22-34z' transform='translate(22 -32)' fill='${t.route}'/><circle cx='300' cy='220' r='6' fill='${t.bg}'/>`}
+  return `url("data:image/svg+xml,${encodeURIComponent(s+'</svg>')}")`;
+}
+const BLUE={water:'#0D35A8',seed:7,bg:'#1446D8',minor:'#2F5EE6',major:'#3E6CF0',park:'#1A3FB8',route:'#FFFFFF'};
+const MAP={blue:mapSVG(BLUE,false),blueR:mapSVG(BLUE,true)};
+
+/* ---------------- data ---------------- */
+const ROUTES=[
+ {name:'KTH → Fridhemsplan',from:'Tekniska högskolan',fromLine:'Red T14',fromExit:'Valhallavägen exit',to:'Fridhemsplan',toLine:'Blue T10',toExit:'S:t Eriksgatan exit',
+  stages:[{line:'Red T14',a:'Tekniska högskolan',b:'T-Centralen'},{line:'Blue T10',a:'T-Centralen',b:'Fridhemsplan'}]},
+ {name:'Södersjukhuset',from:'Tekniska högskolan',fromLine:'Red T14',fromExit:'Valhallavägen exit',to:'Skanstull',toLine:'Green T18',toExit:'Ringvägen exit',
+  stages:[{line:'Red T14',a:'Tekniska högskolan',b:'T-Centralen'},{line:'Green T18',a:'T-Centralen',b:'Skanstull'}]},
+];
+/* SL tunnelbana line colours */
+const LC={Red:'#D71D24',Blue:'#0089CA',Green:'#148541'};
+const lp=l=>`<span class="pill" style="background:${LC[l.split(' ')[0]]||'#1446D8'}">${l}</span>`;
+/* Google Maps universal links: open the Maps app on phones, maps.google.com on desktop. No API key. */
+const gq=st=>encodeURIComponent(st+' tunnelbana, Stockholm');
+const gWalk=st=>`https://www.google.com/maps/dir/?api=1&destination=${gq(st)}&travelmode=walking`;
+const gTransit=(a,b)=>`https://www.google.com/maps/dir/?api=1&origin=${gq(a)}&destination=${gq(b)}&travelmode=transit`;
+const gBtn=(href,label)=>`<a class="btn gmaps" href="${href}" target="_blank" rel="noopener">${ic('nav',16)} ${label}</a>`;
+/* Stockholm tunnelbana: station -> line colours (central subset) */
+const STN={'Tekniska högskolan':['Red'],'Stadion':['Red'],'Östermalmstorg':['Red'],'T-Centralen':['Red','Green','Blue'],'Gamla stan':['Red','Green'],'Slussen':['Red','Green'],'Mariatorget':['Red'],'Zinkensdamm':['Red'],'Hornstull':['Red'],'Universitetet':['Red'],'Danderyds sjukhus':['Red'],
+ 'Odenplan':['Green'],'Rådmansgatan':['Green'],'Hötorget':['Green'],'Medborgarplatsen':['Green'],'Skanstull':['Green'],'Gullmarsplan':['Green'],'Sankt Eriksplan':['Green'],'Fridhemsplan':['Green','Blue'],'Thorildsplan':['Green'],'Alvik':['Green'],
+ 'Kungsträdgården':['Blue'],'Rådhuset':['Blue'],'Stadshagen':['Blue'],'Solna centrum':['Blue'],'Hallonbergen':['Blue']};
+const ALIAS={'kth':'Tekniska högskolan','tekniska':'Tekniska högskolan','royal institute':'Tekniska högskolan','central station':'T-Centralen','centralen':'T-Centralen','old town':'Gamla stan','st eriksplan':'Sankt Eriksplan','saint eriksplan':'Sankt Eriksplan','s t eriksplan':'Sankt Eriksplan','danderyd':'Danderyds sjukhus','stockholm university':'Universitetet','university':'Universitetet','city hall':'Rådhuset','solna':'Solna centrum','sodersjukhuset':'Skanstull','south hospital':'Skanstull','stadium':'Stadion'};
+const EXIT={'Tekniska högskolan':'Valhallavägen exit','Fridhemsplan':'S:t Eriksgatan exit','Skanstull':'Ringvägen exit'};
+const LNAME={Red:'Red T14',Green:'Green T18',Blue:'Blue T10'};
+const HOME_STN='Tekniska högskolan'; /* stands in for "nearest station to you" */
+const norm=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const KEYS=[...Object.keys(STN).map(k=>[norm(k).replace(/ /g,''),k]),...Object.entries(ALIAS).map(([a,k])=>[norm(a).replace(/ /g,''),k])].sort((x,y)=>y[0].length-x[0].length);
+function parseRoute(text){
+  let c=norm(text).replace(/ /g,'');const hits=[];
+  for(const [key,st] of KEYS){let i=c.indexOf(key);while(i>-1){hits.push([i,st]);c=c.slice(0,i)+'#'.repeat(key.length)+c.slice(i+key.length);i=c.indexOf(key)}}
+  const seq=[...new Set(hits.sort((a,b)=>a[0]-b[0]).map(h=>h[1]))];
+  let from,to;if(seq.length>=2)[from,to]=seq;else if(seq.length===1&&seq[0]!==HOME_STN){from=HOME_STN;to=seq[0]}else return null;
+  const fav=ROUTES.find(r=>r.from===from&&r.to===to);if(fav)return fav;
+  const common=STN[from].filter(x=>STN[to].includes(x));
+  const stages=common.length?[{line:LNAME[common[0]],a:from,b:to}]:[{line:LNAME[STN[from][0]],a:from,b:'T-Centralen'},{line:LNAME[STN[to][0]],a:'T-Centralen',b:to}];
+  return{name:'Voice request',from,fromLine:stages[0].line,fromExit:EXIT[from]||'main entrance',to,toLine:stages[stages.length-1].line,toExit:EXIT[to]||'main exit',stages};
+}
+const TRIP=['nav','verify','guide','mark','done'];
+const VOLS=[{name:'Junge',code:'1243',tag:'Volunteer A'},{name:'Chen Hao',code:'1343',tag:'Volunteer B'}];
+function stageSteps(rt,i){
+  const s=rt.stages[i];
+  if(rt.stages.length===1)return[`Enter ${rt.from} station at ${rt.fromExit}`,`Pass the gates, follow the tactile path`,`Board ${s.line} towards ${s.b}`,`Arrive at ${s.b} station`,`Leave through ${rt.toExit}`];
+  return i===0?[`Enter ${rt.from} station at ${rt.fromExit}`,`Pass the gates, follow the tactile path`,`Board ${s.line} towards ${s.b}`,`Arrive at ${s.b}, walk to the ${rt.stages[1].line} platform`]
+              :[`Board ${s.line} towards ${s.b}`,`Arrive at ${s.b} station`,`Leave through ${rt.toExit}`];
+}
+const FLOW=[
+ ['b','START','盲人语音说出目的地 / 选择常用路线'],
+ ['s','MATCHING','系统搜索附近志愿者'],
+ ['v','RECEIVE TASK','志愿者收到任务弹窗（路线信息）'],
+ ['s','MATCH SUCCESS','生成动态服务 ID（临时志愿者编号）'],
+ ['b','HEAR','语音播报：匹配成功 + 志愿者编号'],
+ ['v','NAVIGATION','志愿者导航到盲人位置'],
+ ['b','MEET','盲人说出编号'],
+ ['v','VERIFY','志愿者输入编号'],
+ ['s','VERIFY SUCCESS','编号变为志愿者姓名，行程开始'],
+ ['bv','GUIDANCE','陪同出行，盲人端音频/震动反馈'],
+ ['v','ARRIVE','完成服务（接力时标记车厢位置）'],
+ ['s','END TRIP','计算奖励积分'],
+ ['v','RECEIVE POINTS','志愿者收到积分通知'],
+];
+const LANE={b:['#1446D8','BLIND'],s:['#8A90A0','SYSTEM'],v:['#11131A','VOLUNTEER'],bv:['#1446D8','BLIND + VOL']};
+
+/* ---------------- state ---------------- */
+let S,timers=[],audioOn=true,srBlocked=false;
+function fresh(){return{
+  b:{tab:'home',screen:'tabs',chat:[{w:1,t:'Hi Miss Liu. Where would you like to go today? Tap the microphone and say your destination.'}],vstep:0,listening:false,typing:false,ov:null,phase:null,caption:null},
+  v:{tab:'home',screen:'tabs',popup:false,route:'full',entered:'',bad:false,step:0,mark:{station:'T-Centralen',door:'12'},toast:null,exch:false,qty:1,lang:'en',learn:false},
+  trip:null, who:0, points:510, tickets:2, services:23, history:[],
+  flow:-1, log:[], hint:'点击盲人端的麦克风，用英语说出起点和终点，例如 “From KTH to Fridhemsplan”。如果麦克风不可用，会改用键盘听写。也可以点底部星标选常用路线。'
+}}
+const later=(ms,f)=>timers.push(setTimeout(()=>{f();render()},ms));
+function log(who,t){S.log.unshift([who,t])}
+function speak(t){S.b.caption=t;const id=Symbol();S.b.capId=id;timers.push(setTimeout(()=>{if(S.b.capId===id){S.b.caption=null;render()}},7000));
+  if(audioOn&&'speechSynthesis' in window){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=1.02;speechSynthesis.speak(u)}catch(e){}}}
+function buzz(id){const el=document.getElementById(id);el.classList.remove('buzz');void el.offsetWidth;el.classList.add('buzz');if(id==='pB'&&navigator.vibrate){try{navigator.vibrate([60,40,60])}catch(e){}}}
+const vol=()=>VOLS[S.who];
+
+/* ---------------- actions ---------------- */
+const A={
+ toggleAudio(){audioOn=!audioOn;if(!audioOn&&'speechSynthesis' in window)speechSynthesis.cancel()},
+ reset(){try{S.b.rec&&S.b.rec.abort()}catch(e){}timers.forEach(clearTimeout);timers=[];if('speechSynthesis' in window)speechSynthesis.cancel();S=fresh()},
+ bTab(t){S.b.tab=t},
+ bMic(){
+  const b=S.b; if(b.listening){try{b.rec&&b.rec.stop()}catch(e){}return} if(b.vstep>1)return;
+  if('speechSynthesis' in window)try{speechSynthesis.cancel()}catch(e){}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR||srBlocked)return openType();
+  let rec,final='';try{rec=new SR()}catch(e){srBlocked=true;return openType()}
+  rec.lang='en-US';rec.interimResults=true;rec.maxAlternatives=1;
+  rec.onresult=e=>{let txt='';final='';for(const r of e.results){txt+=r[0].transcript;if(r.isFinal)final+=r[0].transcript}b.interim=txt;render()};
+  rec.onerror=e=>{b.listening=false;b.interim='';
+    if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){srBlocked=true;openType()}
+    else if(e.error==='no-speech')S.hint='没有听到声音，再点一次麦克风试试。';render()};
+  rec.onend=()=>{const t=(final||b.interim||'').trim();b.listening=false;b.interim='';b.rec=null;if(t)hear(t);render()};
+  try{rec.start();b.listening=true;b.rec=rec;S.hint=b.vstep===0?'正在聆听：说出起点和终点，例如 “From KTH to Fridhemsplan”。说完会自动识别，也可以再点一次麦克风结束。':'正在聆听：说 “Confirmed” 确认，或 “No” 重新说。'}
+  catch(e){srBlocked=true;openType()}
+ },
+ bType(){openType()},
+ bCloseType(){S.b.typeOpen=false},
+ bSend(){const i=document.getElementById('bInput');const t=(i&&i.value||'').trim();if(!t)return;i.value='';hear(t)},
+ bDemo(){hear(S.b.vstep===0?`I want to go from ${ROUTES[0].from} station to ${ROUTES[0].to} station.`:'Confirmed.')},
+ bFav(i){const rt=ROUTES[+i];S.b.tab='home';S.b.chat.push({me:1,t:`★ ${rt.name}: ${rt.from} → ${rt.to}`});S.flow=0;log('BLIND','Favourite route: '+rt.name);
+  const t=`Requesting help for your saved route to ${rt.to}. Matching you with a volunteer…`;S.b.chat.push({w:1,t});speak(t);S.b.vstep=2;startMatch(rt)},
+ bCancelMatch(){timers.forEach(clearTimeout);timers=[];S.b.ov=null;S.b.vstep=0;S.v.popup=false;S.trip=null;S.flow=-1;log('BLIND','Request cancelled');S.hint='请求已取消。点击麦克风重新开始。'},
+ bMatchedOk(){S.b.ov=null;S.b.screen='trip';S.b.phase='onway';S.flow=5;S.hint='在志愿者端点击 “I’ve arrived”，模拟志愿者走到盲人身边。'},
+ bReadCode(){speak(`Your volunteer code is ${vol().code.split('').join(' ')}.`)},
+ bVerifiedOk(){S.b.ov=null;S.b.phase='guiding';S.flow=9;speak(`Let's go. ${S.trip.steps[0]}.`);S.hint='在志愿者端点击 “Next”，逐步推进陪同过程；盲人端会收到语音与震动反馈。'},
+ bCall(){speak('Calling '+(S.b.phase==='guiding'?vol().name:'volunteer '+vol().code)+'…');log('BLIND','Phone call started (simulated)')},
+ bSOS(){speak('SOS call. Connecting you to the WALKWITH help line and sharing your location with your emergency contact.');log('BLIND','SOS call triggered (simulated)')},
+ bNextTrip(){S.b.ov=null;S.trip.stage=1;S.who=1;S.flow=1;S.b.phase=null;S.b.screen='tabs';const t='Trip B is starting. Matching you with the next volunteer at '+S.v.mark.station+'…';S.b.chat.push({w:1,t});speak(t);startMatch(S.trip.rt,true)},
+ bDone(){S.b.ov=null;if(S.v.screen!=='done')S.who=0;S.b.screen='tabs';S.b.tab='home';S.b.phase=null;S.b.vstep=0;S.b.chat.push({w:1,t:'You have arrived. Have a good day, Miss Liu!'});S.flow=13;S.hint='流程结束。可以在志愿者端打开个人页查看积分并兑换地铁票，或点右上角“重新开始”。'},
+
+ vTab(t){S.v.tab=t;if(TRIP.includes(S.v.screen))S.v.away=true},
+ vResume(){S.v.away=false},
+ vLang(l){S.v.lang=l},
+ vLearn(){S.v.learn=!S.v.learn},
+ vAccept(){S.v.popup=false;
+  if(S.trip.relayB){S.trip.mode='relay';matched()}
+  else{S.v.away=false;S.v.screen='route';S.hint='选择服务路段：Full route = 一位志愿者全程；Stage 1 = 只送一段，由下一位志愿者接力。然后点 Confirm。'}},
+ vDecline(){S.v.popup=false;log('VOL',vol().name+' declined');S.hint='志愿者拒绝了任务，系统会继续匹配下一位……';later(1800,()=>{S.v.popup=true;buzz('pV');S.hint='任务又弹出来了，点 Accept 接单。'})},
+ vRoute(r){S.v.route=r},
+ vRouteOk(){S.trip.mode=S.v.route==='full'||S.trip.rt.stages.length<2?'single':'relay';matched()},
+ vArrived(){S.v.away=false;S.v.screen='verify';S.v.entered='';S.b.phase='meet';S.flow=6;
+  speak(`Your volunteer has arrived. Please tell them your code: ${vol().code.split('').join(' ')}.`);buzz('pB');
+  S.hint=`盲人告诉志愿者编号 ${vol().code}。在志愿者端的数字键盘输入它，然后点 Confirm。（可以故意输错试试）`},
+ vKey(k){const v=S.v;v.bad=false;if(k==='del')v.entered=v.entered.slice(0,-1);else if(v.entered.length<4)v.entered+=k;S.flow=7},
+ vResend(){speak(`Please tell your volunteer your code again: ${vol().code.split('').join(' ')}.`);log('SYSTEM','Asked blind user to repeat the code')},
+ vVerify(){const v=S.v;if(v.entered!==vol().code){v.bad=true;v.entered='';log('SYSTEM','Code mismatch — verification refused');S.hint='编号不对，验证失败。请重新输入 '+vol().code+'。';return}
+  S.flow=8;log('SYSTEM',`Verify success: ID ${vol().code} → ${vol().name}. Trip started`);v.away=false;v.screen='guide';v.step=0;S.b.ov='verified';buzz('pB');
+  speak(`Verification successful. Your volunteer is ${vol().name}.`);S.hint='盲人端显示志愿者真实姓名，点 Confirm 开始行程。'},
+ vNext(){const t=S.trip;if(S.b.phase!=='guiding'){S.hint='请先在盲人端点 Confirm，确认志愿者身份。';return}
+  if(S.v.step<t.steps.length-1){S.v.step++;speak(t.steps[S.v.step]+'.');buzz('pB');S.flow=9}},
+ vArrive(){const t=S.trip;S.flow=10;
+  if(t.mode==='relay'&&t.stage===0){S.v.away=false;S.v.screen='mark';S.hint='接力模式：在结束前标记盲人所在的站台和车门号，方便下一位志愿者接人。'}
+  else endTrip()},
+ vMark(){const f=document.getElementById('mStation'),d=document.getElementById('mDoor');S.v.mark={station:f.value,door:d.value||'12'};
+  log('VOL',`Location marked: ${S.v.mark.station} · ${S.trip.rt.stages[1].line} platform · door ${S.v.mark.door}`);endTrip()},
+ vFinish(){S.v.away=false;S.v.screen='tabs';S.v.tab='home';S.v.toast={t:`+${S.trip.reward} points`,s:`Thanks for walking with Miss Liu. Points are added to your account.`};S.flow=12;
+  later(4200,()=>{S.v.toast=null});
+  if(S.trip.mode==='relay'&&S.trip.stage===0)S.hint='在盲人端点 “Begin Trip B”，系统会为第二段重新匹配志愿者 B。';
+  else if(S.b.ov==='complete')S.hint='在盲人端点 Done 结束行程。';},
+ vExch(){S.v.exch=!S.v.exch;S.v.qty=1},
+ vQty(d){S.v.qty=Math.max(1,Math.min(Math.floor(S.points/100)||1,S.v.qty+ +d))},
+ vExchOk(){const c=S.v.qty*100;if(S.points<c)return;S.points-=c;S.tickets+=S.v.qty;log('VOL',`Exchanged ${c} points for ${S.v.qty} metro ticket(s)`);S.v.exch=false;S.v.toast={t:`${S.v.qty} metro ticket${S.v.qty>1?'s':''} added`,s:'Show the QR code at any metro gate.'};later(3500,()=>{S.v.toast=null})},
+};
+function openType(){S.b.typeOpen=true;
+  S.hint=srBlocked?'当前页面无法直接使用麦克风。点盲人端的输入框，再点手机键盘上的麦克风键，用系统听写说出目的地，然后点发送。':'在输入框里输入，或用手机键盘上的麦克风听写。';
+  later(60,()=>{const i=document.getElementById('bInput');if(i)i.focus()})}
+function hear(t){const b=S.b;b.chat.push({me:1,t});b.typing=true;
+  if(b.vstep===0){const rt=parseRoute(t);
+    later(700,()=>{b.typing=false;
+      if(!rt){const m='Sorry, I couldn’t find a station in that. Try: “From KTH to Fridhemsplan”.';b.chat.push({w:1,t:m});speak(m);S.hint='没有识别到车站名。可以说 “From KTH to Fridhemsplan” 或 “Take me to Gamla stan”。';return}
+      S.pending=rt;S.flow=0;log('BLIND','Voice request: '+rt.from+' → '+rt.to);
+      const m=`The best route has been planned: from ${rt.from}, take the ${rt.stages[0].line} towards ${rt.stages[0].b}${rt.stages.length>1?`, then change to the ${rt.stages[1].line} to ${rt.to}`:''}. Confirmed or modified?`;
+      b.chat.push({w:1,t:m});speak(m);b.vstep=1;S.hint='回答 “Confirmed” 确认路线，或说 “No” 重新说目的地。'});
+  }else{const n=' '+norm(t)+' ';
+    if(/ (no|nope|change|modify|wrong|cancel) /.test(n)){later(500,()=>{b.typing=false;b.vstep=0;S.pending=null;const m='Okay. Where would you like to go?';b.chat.push({w:1,t:m});speak(m);S.hint='重新说出起点和终点。'})}
+    else if(/ (yes|yeah|yep|confirm|confirmed|ok|okay|sure|correct|right|go) /.test(n)){later(700,()=>{b.typing=false;const m='The assignment has been posted and is matching you with a volunteer…';b.chat.push({w:1,t:m});speak(m);b.vstep=2;b.typeOpen=false;startMatch(S.pending)})}
+    else later(500,()=>{b.typing=false;const m='Please say “Confirmed” to book this route, or “No” to change it.';b.chat.push({w:1,t:m});speak(m)});
+  }}
+function startMatch(rt,relayB){
+  if(!relayB){S.trip={rt,stage:0,mode:null,steps:[],reward:0};S.who=0}
+  S.trip.relayB=!!relayB;S.b.ov='matching';S.flow=1;log('SYSTEM','Searching volunteers within 1 km of '+(relayB?S.v.mark.station:rt.from));
+  S.v.away=false;S.v.screen='tabs';S.v.tab='tasks';S.hint='系统正在匹配志愿者……';
+  later(1700,()=>{S.v.popup=true;S.flow=2;buzz('pV');log('SYSTEM','Task pushed to '+vol().name);S.hint=relayB?'现在右边是志愿者 B 的手机。任务里带有上一位志愿者标记的站台与车门号，点 Accept。':'志愿者端弹出求助任务。点 Accept 接单（或 Cancel 看拒绝的情况）。'});
+}
+function matched(){
+  const t=S.trip,rt=t.rt;S.v.route=S.v.route||'full';
+  t.steps=t.mode==='single'?(rt.stages.length>1?[...stageSteps(rt,0),...stageSteps(rt,1)]:stageSteps(rt,0)):stageSteps(rt,t.stage);
+  S.flow=3;log('SYSTEM',`Match success. Dynamic Service ID ${vol().code} generated for ${vol().name}`);
+  S.v.away=false;S.v.screen='nav';S.b.ov='matched';buzz('pB');
+  later(500,()=>{if(S.flow<4)S.flow=4;speak(`Match made! Your volunteer number is ${vol().code}. Your volunteer is on the way.`)});
+  S.hint='盲人端听到“匹配成功”和志愿者编号。点盲人端的 Confirm。';
+}
+function endTrip(){
+  const t=S.trip;t.reward=t.mode==='single'?30:15;S.flow=11;
+  if(S.who===0){S.points+=t.reward;S.services++;S.history.unshift(`${t.mode==='single'?rt0(t):t.rt.stages[t.stage].a+' → '+t.rt.stages[t.stage].b} · +${t.reward}`)}
+  log('SYSTEM',`End trip. Reward calculated: +${t.reward} points for ${vol().name}`);
+  S.v.away=false;S.v.screen='done';
+  const last=t.mode==='single'||t.stage===1;
+  S.b.ov='complete';buzz('pB');
+  speak(last?`You have arrived at ${t.rt.to} station. Trip complete. Thank you for walking with ${vol().name}.`:`Trip A complete. ${vol().name} has marked your location: ${S.v.mark.station}, ${t.rt.stages[1].line} platform, door ${S.v.mark.door}. The next volunteer will meet you here.`);
+  S.hint='志愿者端点 Finish，查看积分通知。';
+}
+const rt0=t=>t.rt.from+' → '+t.rt.to;
+
+/* ---------------- render: blind ---------------- */
+function bTabs(){const t=S.b.tab;const B=(k,i,l)=>`<button class="${t===k?'act':''}" data-a="bTab" data-v="${k}" aria-label="${l}">${ic(i,22)}</button>`;
+  return `<nav class="tabs" aria-label="Blind user tabs">${B('home','hand','One-tap request')}${B('fav','star','Favourite routes')}${B('help','phone','Ask for help')}${B('me','gear','Profile')}</nav>`}
+function renderBlind(){
+  const b=S.b;let h='';
+  if(b.screen==='trip'){
+    const v=vol(),t=S.trip,ph=b.phase;
+    const steps=ph==='guiding'?t.steps.map((s,i)=>`<li class="${i<S.v.step?'done':i===S.v.step?'now':''}">${s}</li>`).join(''):'';
+    h=`<div class="scr blue" style="background-image:${MAP.blueR}">
+      <div class="b-title"><span>Trip in progress${t.mode==='relay'?` · Trip ${t.stage?'B':'A'}`:''}</span></div>
+      <div style="flex:1"></div>
+      <div class="card-navy">
+       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div><div class="vlabel">${v.tag}${ph==='guiding'?' · ID '+v.code+' verified':''}</div>${ph==='guiding'?`<div class="vname">${v.name}</div>`:`<div class="vnum">${v.code}</div>`}</div>
+        <button class="callbtn" data-a="bCall" aria-label="Call volunteer">${ic('phone',20)}</button>
+       </div>
+       ${ph==='guiding'?`<ul class="tl" style="max-height:190px;overflow:auto">${steps}</ul>`:`
+       <ul class="tl">
+        <li class="${ph==='onway'?'now':'done'}">On the way<small>${ph==='onway'?'Your volunteer is about 120 m away · 2 min':'Your volunteer has arrived'}</small></li>
+        <li class="${ph==='meet'?'now':''}">Code Verify${ph==='meet'?`<small>Tell your volunteer this code</small><div class="codebox">${v.code.split('').map(d=>`<span>${d}</span>`).join('')}</div>`:''}</li>
+        <li>Verify Success</li>
+       </ul>`}
+       <div style="display:flex;gap:10px;margin-top:6px;align-items:center">
+        ${ph==='meet'?`<button class="btn white sm" data-a="bReadCode">${ic('vol',18)} Read code aloud</button>`:`<button class="btn ghost sm" data-a="bReadCode">${ic('vol',18)} Repeat my code</button>`}
+        <button class="sos" data-a="bSOS" aria-label="SOS call">SOS</button>
+       </div>
+      </div>
+     </div>`;
+  }else if(b.tab==='home'){
+    const chat=b.chat.map(m=>`<div class="msg ${m.me?'me':'w'}"><span class="av">${m.me?'L':'W'}</span><div class="bub">${m.t}</div></div>`).join('')+(b.listening&&b.interim?`<div class="msg me interim"><span class="av">L</span><div class="bub">${b.interim}…</div></div>`:'')+(b.typing?`<div class="msg w"><span class="av">W</span><div class="bub typing"><span></span><span></span><span></span></div></div>`:'');
+    h=`<div class="scr blue" style="background-image:${MAP.blue}">
+      <div class="b-title">Trips Search</div>
+      <div class="chat" id="chat">${chat}</div>
+      ${b.typeOpen&&b.vstep<2?`<form id="bForm" class="say"><input id="bInput" placeholder="${b.vstep===1?'Say “Confirmed” or “No”':'From KTH to Fridhemsplan'}" autocomplete="off" enterkeyhint="send" aria-label="Type or dictate your request"><button type="submit" aria-label="Send">${ic('nav',18)}</button></form>
+      <div class="sayrow"><button type="button" data-a="bDemo">Use sample sentence</button><button type="button" data-a="bCloseType">Hide keyboard input</button></div>`:''}
+      <div class="micwrap"><button class="mic ${b.listening?'on':''}" data-a="bMic" aria-label="${b.listening?'Stop listening':'Speak your destination'}" ${b.vstep>1?'disabled':''}>${ic('mic',40,2)}</button><p>${b.listening?'Listening… tap to stop':b.vstep===1?'Tap and say “Confirmed”':b.vstep>1?'Request posted':'Tap to speak'}</p>${!b.typeOpen&&b.vstep<2?'<button class="linkbtn" data-a="bType">Type instead</button>':''}</div>
+      ${bTabs()}</div>`;
+  }else if(b.tab==='fav'){
+    h=`<div class="scr blue" style="background-image:${MAP.blue}">
+      <div class="b-title">Favourite Routes</div>
+      <p style="margin:0 0 12px;font-size:12.5px;opacity:.9">Choose a saved route to request a volunteer in one tap.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">${ROUTES.map((r,i)=>`<button class="card-navy" style="text-align:left;padding:14px 16px" data-a="bFav" data-v="${i}" ${b.vstep>1?'disabled':''}>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">${r.name}</b>${ic('star',18)}</div>
+        <div style="font-size:12px;opacity:.85;margin-top:6px">${r.from} ${lp(r.fromLine)} → ${r.to} ${lp(r.toLine)}</div></button>`).join('')}</div>
+      ${bTabs()}</div>`;
+  }else if(b.tab==='help'){
+    h=`<div class="scr blue" style="background-image:${MAP.blue}">
+      <div class="b-title">Ask for Help</div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px">
+       <button data-a="bSOS" style="width:150px;height:150px;border-radius:50%;background:#D92D20;color:#fff;font-family:var(--f-display);font-weight:800;font-size:38px;box-shadow:0 0 0 14px rgba(217,45,32,.25)">SOS</button>
+       <p style="margin:0;font-size:12.5px;text-align:center;opacity:.9;max-width:230px">Press for emergency. Your location is shared with your emergency contact.</p>
+       <button class="btn white" data-a="bCall">${ic('phone',18)} Call WALKWITH help line</button>
+      </div>${bTabs()}</div>`;
+  }else{
+    const R=(a,v)=>`<div class="row" style="background:rgba(255,255,255,.1);color:#fff"><span>${a}</span><b>${v}</b></div>`;
+    h=`<div class="scr blue" style="background-image:${MAP.blue}">
+      <div class="b-title">Profile</div>
+      <div class="card-navy" style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><span class="av" style="width:46px;height:46px;font-size:18px;background:#F3C6A8;color:#7A3B16">L</span><div><b style="font-size:18px">Miss Liu</b><div style="font-size:11.5px;opacity:.8">${S.services>23?'1 trip':'0 trips'} this week</div></div></div>
+      <div class="list">${R('Voice speed','Normal')}${R('Haptic feedback','On')}${R('Language','English')}${R('Emergency contact','Mom')}</div>
+      ${bTabs()}</div>`;
+  }
+  // overlays
+  const v=vol(),ov=b.ov;let o='';
+  if(ov==='matching')o=`<div class="modal"><div class="spin"></div><h3>Matching…</h3><p>Searching for volunteers near ${S.trip.relayB?S.v.mark.station:S.trip.rt.from}.</p><button class="btn line sm" data-a="bCancelMatch">Cancel request</button></div>`;
+  if(ov==='matched')o=`<div class="modal"><div class="ico">${ic('heart',30)}</div><h3>Matching Success</h3><p>${v.tag} number</p><div class="big">${v.code}</div><p>Remember this number. Your volunteer will ask for it when you meet.</p><button class="btn black sm" data-a="bMatchedOk">Confirm</button></div>`;
+  if(ov==='verified')o=`<div class="modal"><div class="ico">${ic('shield',30)}</div><h3>Verify Success</h3><p>Your volunteer is</p><div class="big" style="letter-spacing:.02em">${v.name}</div><button class="btn black sm" data-a="bVerifiedOk">Confirm</button></div>`;
+  if(ov==='complete'){const last=S.trip.mode==='single'||S.trip.stage===1;
+    o=`<div class="modal"><div class="ico">${ic('walk',30)}</div><h3>${last?'Trip Complete':'Trip A Complete'}</h3>${last?`<p>You arrived at ${S.trip.rt.to}, ${S.trip.rt.toExit}.</p><button class="btn black sm" data-a="bDone">Done</button>`:`<p>Waiting point marked: ${S.v.mark.station} · ${S.trip.rt.stages[1].line} platform · door ${S.v.mark.door}</p><button class="btn black sm" data-a="bNextTrip" ${S.v.screen==='done'?'disabled':''}>Begin Trip B</button>`}</div>`}
+  if(o)h+=`<div class="ov">${o}</div>`;
+  if(b.caption)h+=`<div class="caption ${b.screen==='trip'?'trip':''}">${ic('vol',16)}<span><b style="display:block;font-size:10px;letter-spacing:.1em;opacity:.7">AUDIO FEEDBACK</b>${b.caption}</span></div>`;
+  return h;
+}
+
+/* ---------------- render: volunteer ---------------- */
+function vTabs(){const t=TRIP.includes(S.v.screen)&&!S.v.away?'tasks':S.v.tab;const B=(k,i,l)=>`<button class="${t===k?'act':''}" data-a="vTab" data-v="${k}" aria-label="${l}">${ic(i,22)}</button>`;
+  return `<nav class="tabs dark vtabs" aria-label="Volunteer tabs">${B('home','hand','Home')}${B('tasks','doc','Help tasks')}${B('me','user','Profile')}</nav>`}
+const head=(t,light)=>`<div class="v-head" ${light?'style="color:#fff"':''}><h2>${t}</h2><div class="v-icons">${ic('mail',18)}${ic('head',18)}</div></div>`;
+function reqBlock(rt,stage){const st=stage==null?null:rt.stages[stage];
+  const f=st?st.a:rt.from,t=st?st.b:rt.to,fl=st?st.line:rt.fromLine,tl=st?st.line:rt.toLine;
+  return `<div class="req"><small>From</small><strong>${f.toUpperCase()} ${lp(fl)}</strong><em>${stage===1?'Platform, door '+S.v.mark.door:rt.fromExit}</em><small>To</small><strong>${t.toUpperCase()} ${lp(tl)}</strong><em>${stage===0?'Transfer platform':rt.toExit}</em></div>`}
+function renderVol(){
+  const v=S.v,t=S.trip,who=vol();let h='';
+  const tabView=v.screen==='tabs'||v.screen==='route'||v.away;
+  if(tabView){
+    if(v.tab==='home'){
+      h=`<div class="scr white"><div class="logo-sm">${braille('walkwith',2.2,6.5,'#11131A')}WALKWITH</div>
+       <div style="flex:1;display:flex;flex-direction:column;gap:14px;justify-content:center">
+        <div class="vcard"><h3>${who.name}</h3><p>Member since December 25, 2023</p><div class="seg"><button class="${v.lang==='en'?'act':''}" data-a="vLang" data-v="en">English</button><button class="${v.lang==='zh'?'act':''}" data-a="vLang" data-v="zh">Chinese</button></div></div>
+        <button class="btn black" data-a="vLearn">Learn to help blind user</button>
+        ${v.learn?`<div class="note"><b>Guiding basics.</b> Offer your elbow, don’t pull. Describe steps, gaps and turns before they happen. Say which side the tactile path is on. Tell the passenger the train door number.</div>`:''}
+        <p style="text-align:center;font-size:12px;color:#5D6375;margin:0;line-height:1.5">You will receive a notification when someone needs your help.</p>
+       </div></div>`;
+    }else if(v.tab==='tasks'){
+      const live=v.popup||v.screen==='route';
+      const rows=[[live?'Now':'',live?t.rt:null],['1 min ago',{from:'Odenplan',fromLine:'Green T18',to:'Gamla stan',toLine:'Red T14'}],['3 min ago',{from:'Tekniska högskolan',fromLine:'Red T14',to:'Slussen',toLine:'Red T14'}],['9 min ago',{from:'Kungsträdgården',fromLine:'Blue T10',to:'Hötorget',toLine:'Green T18'}]].filter(r=>r[1]);
+      const resume=v.away?`<button class="tcard live" data-a="vResume" style="background:#1446D8;color:#fff;outline:0"><span style="color:#fff;opacity:.8">In progress · Passenger</span><b style="color:#fff">Miss Liu ${ic('chev',16)}</b><span style="color:#fff">${{nav:'Walking to passenger',verify:'Verify passenger code',guide:'Guiding',mark:'Mark location',done:'Route complete'}[v.screen]} · tap to resume</span></button>`:'';
+      h=`<div class="scr white">${head('Task')}<div class="tasks">${resume}${rows.map(([w,r],i)=>`<div class="trow"><span class="when">${w}</span><div class="tcard ${live&&i===0?'live':''}"><span>From</span><b>${r.from} ${lp(r.fromLine)}</b><span>To</span><b>${r.to} ${lp(r.toLine)}</b>${!(live&&i===0)?'<span style="margin-top:4px;font-weight:700">Taken by another volunteer</span>':''}</div></div>`).join('')}</div></div>`;
+    }else{
+      h=`<div class="scr white" style="overflow-y:auto">
+       <div class="ptop" style="background-image:${MAP.blue}">${head('',true)}<div style="display:flex;justify-content:space-between;align-items:center"><h2>Junge</h2><span class="av" style="width:40px;height:40px;background:#F6D7C3;color:#7A3B16">J</span></div>
+        <div class="pts"><span>${ic('coins',16)}</span><div><b>${S.points}</b><div style="font-size:10px;opacity:.8">Points</div></div><span>${ic('ticket',16)}</span><div><b>${S.tickets}</b><div style="font-size:10px;opacity:.8">Tickets</div></div><button class="xbtn" data-a="vExch">Exchange</button></div></div>
+       <div style="display:flex;flex-direction:column;gap:6px;padding-top:14px">
+        <div class="stats"><div class="stat">${ic('clock',18)}<b>3 years</b>Registered</div><div class="stat">${ic('user',18)}<b>${S.services} times</b>Service</div><div class="stat">${ic('ticket',18)}<b>3 tickets</b>Used</div></div>
+        <div class="list"><h4>History</h4>${S.history.map(x=>`<div class="row"><span>${x}</span><span style="color:#1C8C55;font-weight:700">today</span></div>`).join('')}<button class="row"><span>Service History</span>${ic('chev',14)}</button><button class="row"><span>Point use History</span>${ic('chev',14)}</button>
+        <h4>Settings</h4><button class="row"><span>Account</span>${ic('chev',14)}</button><button class="row"><span>Languages</span>${ic('chev',14)}</button><button class="row"><span>Notifications</span>${ic('chev',14)}</button></div>
+       </div>
+       </div>`;
+    }
+    if(v.popup)h+=`<div class="ov"><div class="modal"><button class="x" data-a="vDecline" aria-label="Close">${ic('x',14,3)}</button><div class="ico">${ic('heart',30)}</div><h3>Requesting Assistance</h3>
+      ${t.relayB?`<div class="note">Relay pick-up: previous volunteer marked <b>${v.mark.station} · ${t.rt.stages[1].line} platform · door ${v.mark.door}</b>.</div>`:''}
+      ${reqBlock(t.rt,t.relayB?1:null)}<a href="${t.relayB?gTransit(t.rt.stages[1].a,t.rt.stages[1].b):gTransit(t.rt.from,t.rt.to)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:700;color:#1446D8;margin-top:-4px">View route in Google Maps ↗</a><button class="btn black sm" data-a="vAccept">Accept</button><button class="btn black sm" data-a="vDecline">Cancel</button></div></div>`;
+    if(v.screen==='route'){const R=(k,title,sub,line)=>`<button class="radio ${v.route===k?'act':''}" data-a="vRoute" data-v="${k}"><span><b style="font-size:13px">${title}</b> ${line?lp(line):''}<small>${sub}</small></span><span class="r"></span></button>`;
+      h+=`<div class="ov"><div class="modal"><div class="ico">${ic('route',30)}</div><h3>Route Selection</h3><p>Choose how far you can walk with the passenger.</p>
+       ${t.rt.stages.length>1?R('s1','Stage 1',`${t.rt.stages[0].a} to ${t.rt.stages[0].b}`,t.rt.stages[0].line)+R('s2','Stage 2',`${t.rt.stages[1].a} to ${t.rt.stages[1].b}`,t.rt.stages[1].line):'<div class="note">Direct line, no transfer. One volunteer for the whole trip.</div>'}
+       ${R('full','Full Route',`${t.rt.from} to ${t.rt.to}`,'')}
+       <button class="btn black sm" data-a="vRouteOk">Confirm</button></div></div>`}
+  }else if(v.screen==='nav'||v.screen==='guide'){
+    const g=v.screen==='guide',last=v.step>=t.steps.length-1;
+    h=`<div class="scr blue" style="background-image:${MAP.blueR}">
+     <div class="b-title" style="color:#fff">${g?'Trip in progress':'Navigation to passenger'}</div><div style="flex:1"></div>
+     <div class="card-navy">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="vlabel">Passenger</div><div class="vname">Miss Liu</div></div><button class="callbtn" aria-label="Call passenger">${ic('phone',20)}</button></div>
+      ${g?`<ul class="tl" style="max-height:200px;overflow:auto">${t.steps.map((s,i)=>`<li class="${i<v.step?'done':i===v.step?'now':''}">${s}</li>`).join('')}</ul>
+       <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">${gBtn(gTransit(t.mode==='single'?t.rt.from:t.rt.stages[t.stage].a,t.mode==='single'?t.rt.to:t.rt.stages[t.stage].b),'Open route in Google Maps')}${last?`<button class="btn white" data-a="vArrive">${ic('flag',18)} ${t.mode==='relay'&&t.stage===0?'Mark location & finish stage':'Arrive · complete service'}</button>`:`<button class="btn white" data-a="vNext">Next: ${t.steps[v.step+1]}</button>`}</div>`
+      :`<div class="dist"><div><b>120 m</b>distance</div><div><b>2 min</b>walking</div><div><b>${S.trip.relayB?v.mark.station:t.rt.from}</b>${S.trip.relayB?'door '+v.mark.door:t.rt.fromExit}</div></div>
+       <ul class="tl"><li class="now">On the way</li><li>Code Verify</li><li>Verify Success</li></ul>
+       ${gBtn(gWalk(S.trip.relayB?v.mark.station:t.rt.from),'Navigate in Google Maps')}
+       <button class="btn white" data-a="vArrived" style="margin-top:8px">${ic('pin',18)} I’ve arrived · verify passenger</button>`}
+     </div></div>`;
+  }else if(v.screen==='verify'){
+    const keys=[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ']];
+    h=`<div class="scr blue">
+     <div class="b-title" style="justify-content:flex-start;gap:8px;font-size:17px;margin-bottom:16px"><span>${ic('back',18)}</span>Verify Volunteer Identity</div>
+     <div class="sheet" style="margin:0 -18px -88px;border-radius:22px 22px 0 0;flex:1;gap:12px;padding-bottom:88px">
+      <p style="margin:0;font-size:12px;font-weight:700">Enter the volunteer code</p>
+      <p style="margin:-8px 0 0;font-size:11px;color:#5D6375">Ask the passenger to tell you the 4-digit code on their phone.</p>
+      <div class="codein ${v.bad?'bad':''}">${[0,1,2,3].map(i=>`<span class="${i===v.entered.length?'cur':''}">${v.entered[i]||''}</span>`).join('')}</div>
+      <button style="align-self:flex-end;color:#1446D8;font-size:11px;font-weight:700" data-a="vResend">Resend</button>
+      ${v.bad?`<p style="margin:-10px 0 0;font-size:11.5px;color:#D92D20">The code doesn’t match. Ask the passenger again.</p>`:''}
+      <button class="btn black" data-a="vVerify" ${v.entered.length<4?'disabled':''}>Confirm</button>
+      <div class="pad">${keys.map(([k,s])=>`<button data-a="vKey" data-v="${k}">${k}<small>${s}</small></button>`).join('')}<button class="blank" tabindex="-1"></button><button data-a="vKey" data-v="0">0</button><button data-a="vKey" data-v="del" aria-label="Delete" style="background:transparent">${ic('del',22)}</button></div>
+     </div></div>`;
+  }else if(v.screen==='mark'){
+    h=`<div class="scr blue" style="background-image:${MAP.blueR}"><div class="ov"><div class="modal">
+      <div class="ico">${ic('pin',30)}</div><h3>Mark Location</h3><p>Mark where you leave the passenger so the next volunteer can find them easily.</p>
+      <label class="field">Station<select id="mStation">${[...new Set([t.rt.stages[0].b,'T-Centralen','Gamla stan'])].map(o=>`<option>${o}</option>`).join('')}</select></label>
+      <label class="field">Metro Platform Number (door)<input id="mDoor" inputmode="numeric" value="${v.mark.door}"></label>
+      <button class="btn black sm" data-a="vMark">Submit</button></div></div></div>`;
+  }else if(v.screen==='done'){
+    h=`<div class="scr blue" style="background-image:${MAP.blueR}"><div class="ov"><div class="modal">
+      <div class="ico">${ic('flag',30)}</div><h3>Route Complete</h3><p>${t.mode==='relay'?`Stage ${t.stage+1}: ${t.rt.stages[t.stage].a} → ${t.rt.stages[t.stage].b}`:`${t.rt.from} → ${t.rt.to}`}</p>
+      <div class="big" style="letter-spacing:0;font-size:30px">+${t.reward}<span style="font-size:14px"> points</span></div>
+      <button class="btn black sm" data-a="vFinish">Finish</button></div></div></div>`;
+  }
+  h+=vTabs();
+  if(S.who===1)h+=`<div class="relay-tag">Relay · now showing Volunteer B’s phone (Chen Hao)</div>`;
+  if(v.exch){h+=`<div class="ov"><div class="modal"><button class="x" data-a="vExch" aria-label="Close">${ic('x',14,3)}</button><div class="ico">${ic('coins',30)}</div><h3>${S.points} Points</h3>
+    <div class="row"><span>Single Ticket</span><b>100 points</b></div><p>Quantity</p><div class="qty"><button data-a="vQty" data-v="-1">−</button><span>${v.qty}</span><button data-a="vQty" data-v="1">+</button></div>
+    <button class="btn black sm" data-a="vExchOk" ${S.points<v.qty*100?'disabled':''}>Exchange</button></div></div>`}
+  if(v.toast)h+=`<div class="toast">${ic('gift',24)}<div><b>${v.toast.t}</b>${v.toast.s}</div></div>`;
+  return h;
+}
+
+/* ---------------- render: flow ---------------- */
+function renderFlow(){
+  const t=S.trip;
+  const badge=t?(t.mode==='relay'?`Relay · Trip ${t.stage?'B':'A'}`:t.mode==='single'?'One volunteer':'Matching'):'Idle';
+  return `<h3>Core cross-device flow <span class="pill">${badge}</span></h3>
+   <div class="legend">${['b','s','v'].map(k=>`<span><i class="dot" style="background:${LANE[k][0]}"></i>${LANE[k][1]}</span>`).join('')}</div>
+   <ol class="steps">${FLOW.map(([l,n,d],i)=>`<li class="${i<S.flow||S.flow===12&&i===12?'done':i===S.flow?'now':''}" style="--lane:${LANE[l][0]}"><span class="n">${i+1}</span><span><b>${n}<span class="lane">${LANE[l][1]}</span></b>${d}</span></li>`).join('')}</ol>
+   <div class="mech"><b>Volunteer verification.</b> The system issues a temporary Dynamic Service ID per trip. The blind user tells it to the volunteer; once it matches, the number on the blind user’s phone becomes the volunteer’s registered name.</div>
+   <div class="log" aria-label="System log">${S.log.length?S.log.map(([w,t])=>`<div><span>${w}</span><span>${t}</span></div>`).join(''):'<div><span>LOG</span><span>Events from both phones and the backend appear here.</span></div>'}</div>`;
+}
+
+function render(){
+  const bi=document.getElementById('bInput'),keep=bi?bi.value:'',foc=bi&&document.activeElement===bi;
+  document.getElementById('blind').innerHTML=renderBlind();
+  document.getElementById('vol').innerHTML=renderVol();
+  document.getElementById('flow').innerHTML=renderFlow();
+  document.getElementById('hint').textContent=S.hint;
+  document.getElementById('vwho').textContent=vol().name;
+  const vTabView=S.v.screen==='tabs'||S.v.screen==='route'||S.v.away;const darkTop=!vTabView||S.v.tab==='me';
+  document.getElementById('vsbar').style.color=darkTop?'#fff':'#11131A';
+  document.getElementById('vhb').style.color=vTabView||S.v.screen==='verify'?'#11131A':'#fff';
+  const ni=document.getElementById('bInput');if(ni){ni.value=keep;if(foc)ni.focus()}
+  const c=document.getElementById('chat');if(c)c.scrollTop=c.scrollHeight;
+  const ab=document.getElementById('audioBtn');ab.classList.toggle('on',audioOn);ab.innerHTML=ic(audioOn?'vol':'mute',16)+(audioOn?' 语音播报：开':' 语音播报：关');
+}
+document.addEventListener('submit',e=>{e.preventDefault();if(e.target.id==='bForm'){A.bSend();render()}});
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||el.disabled)return;A[el.dataset.a](el.dataset.v);render()});
+S=fresh();render();
+</script>
+
+</body>
+</html>
